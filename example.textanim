@@ -1,0 +1,21 @@
+@details
+name = "some file"
+
+@frame
+--------------------
+--------------------
+----@---------------
+
+# frames are trimmed and bottom aligned, so this gap does nothing
+
+# delay the next frame by the length of one frame
+@delay 1
+@frame
+--------------------
+--------------------
+-----@--------------
+
+@frame
+--------------------
+--------------------
+------@-------------

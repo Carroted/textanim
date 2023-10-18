@@ -1,0 +1,41 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.textareas {
+    display: grid;
+}
+
+textarea {
+    grid-column: 1;
+    grid-row: 1;
+    background: #000000a0;
+    color: #ffffff;
+    font-size: 20px;
+    resize: none;
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+}
+
+textarea.previous {
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+    background: #000000ff;
+}
+
+:root,
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}

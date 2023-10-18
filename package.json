@@ -1,0 +1,5 @@
+{
+    "scripts": {
+        "go": "rm -rf dist && mkdir dist && cp -r static/. dist/ && bun build ./src/index.ts --outdir dist && python3 -m http.server --directory dist"
+    }
+}
