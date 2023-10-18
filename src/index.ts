@@ -1,5 +1,9 @@
 // welcome to textanim, webapp for making and viewing text animations
 
+let editorArea = document.createElement('div');
+editorArea.className = 'editor';
+editorArea = document.body.appendChild(editorArea);
+
 let textAreas = document.createElement('div');
 textAreas.className = 'textareas';
 
@@ -18,7 +22,11 @@ textArea.maxLength = textArea.rows * textArea.cols;
 
 textArea = textAreas.appendChild(textArea);
 prevTextArea = textAreas.appendChild(prevTextArea);
-document.body.appendChild(textAreas);
+editorArea.appendChild(textAreas);
+
+let frameList = document.createElement('div');
+frameList.className = 'frame-list';
+frameList = document.body.appendChild(frameList);
 
 interface Action {
     type: 'frame' | 'delay' | 'subtitle';
@@ -38,17 +46,55 @@ interface Subtitle extends Action {
 }
 
 let actions: Action[] = [];
+let editingFrameIndex: number | null = null;
+
+function renderActions() {
+    frameList.innerHTML = '';
+    let actionLength = actions.length;
+    for (let i = 0; i < actionLength; i++) {
+        let action = actions[i];
+        if (action.type === 'frame') {
+            let frame = action as Frame;
+            let frameReplica = document.createElement('textarea');
+            frameReplica.className = 'frame-replica';
+            frameReplica.readOnly = true;
+            frameReplica.value = frame.text;
+            frameReplica.rows = textArea.rows;
+            frameReplica.cols = textArea.cols;
+            frameReplica.addEventListener('click', (e) => {
+                console.log('clicked replica');
+                textArea.value = frame.text;
+                editingFrameIndex = i;
+                if (i > 0) {
+                    let prevAction = actions[i - 1];
+                    if (prevAction.type === 'frame') {
+                        prevTextArea.value = (prevAction as Frame).text;
+                    } else {
+                        prevTextArea.value = '';
+                    }
+                }
+                else {
+                    prevTextArea.value = '';
+                }
+            });
+            frameList.appendChild(frameReplica);
+        }
+    }
+}
 
 textArea.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
         fixTextArea();
-        actions.push({
-            type: 'frame',
-            text: textArea.value
-        } as Frame);
-        console.log('new action length is', actions.length);
-        prevTextArea.value = textArea.value;
-        textArea.value = '';
+        if (editingFrameIndex === null) {
+            actions.push({
+                type: 'frame',
+                text: textArea.value
+            } as Frame);
+            renderActions();
+            console.log('new action length is', actions.length);
+            prevTextArea.value = textArea.value;
+            textArea.value = '';
+        }
         e.preventDefault();
     }
     // if its newline, we will instead jump to next line without inserting newline, no content will be modified
@@ -69,9 +115,25 @@ textArea.addEventListener('keydown', (e) => {
         // move cursor to end of inserted char
         textArea.selectionStart = selectionEnd + 1;
         textArea.selectionEnd = selectionEnd + 1;
+        updateEditing();
     }
 
     fixTextArea();
+});
+
+function updateEditing() {
+    if (editingFrameIndex !== null) {
+        actions[editingFrameIndex] = {
+            type: 'frame',
+            text: textArea.value
+        } as Frame;
+        renderActions();
+    }
+}
+
+textArea.addEventListener('input', (e) => {
+    fixTextArea();
+    updateEditing();
 });
 
 function fixTextArea() {
@@ -132,10 +194,10 @@ removeColumn.addEventListener('click', () => {
     }
 });
 
-document.body.appendChild(addRow);
-document.body.appendChild(removeRow);
-document.body.appendChild(addColumn);
-document.body.appendChild(removeColumn);
+editorArea.appendChild(addRow);
+editorArea.appendChild(removeRow);
+editorArea.appendChild(addColumn);
+editorArea.appendChild(removeColumn);
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -184,7 +246,7 @@ playButton.innerHTML = 'Play';
 playButton.addEventListener('click', (e) => {
     play();
 });
-document.body.appendChild(playButton);
+editorArea.appendChild(playButton);
 
 // stop button
 let stopButton = document.createElement('button');
@@ -193,4 +255,4 @@ stopButton.innerHTML = 'Stop';
 stopButton.addEventListener('click', (e) => {
     stop();
 });
-document.body.appendChild(stopButton);
+editorArea.appendChild(stopButton);

@@ -11,19 +11,21 @@
 textarea {
     grid-column: 1;
     grid-row: 1;
-    background: #000000a0;
+    background: #2d2d2da0;
     color: #ffffff;
     font-size: 20px;
     resize: none;
     overflow-wrap: anywhere;
     word-wrap: break-word;
+    border: none;
+    outline: none;
 }
 
 textarea.previous {
     z-index: -1;
     pointer-events: none;
     user-select: none;
-    background: #000000ff;
+    background: #2d2d2dff;
 }
 
 :root,
@@ -33,9 +35,32 @@ body {
     height: 100%;
 }
 
+:root {
+    background: #111111;
+}
+
 body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: row;
+}
+
+.editor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-direction: column;
+}
+
+.frame-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.frame-list textarea {
+    font-size: 0.7rem;
 }
