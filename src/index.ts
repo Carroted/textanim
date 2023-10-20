@@ -47,6 +47,7 @@ currentFrame.value = "";
 let frameList = document.createElement('div');
 frameList.className = 'frame-list';
 frameList = document.body.appendChild(frameList);
+let frameListFrames: HTMLDivElement[] = [];
 
 // checkbox
 let newFromCurrent = document.createElement('input');
@@ -197,7 +198,7 @@ function renderAction(i: number) {
     item.appendChild(remove);
     return item;
 }
-let frameListFrames: HTMLDivElement[] = [];
+
 function renderActions() {
     frameList.innerHTML = '';
     frameListFrames = [];
@@ -234,9 +235,7 @@ function renderActions() {
 }
 function updateAction(index: number) {
     // replace child
-    console.log('index is', index);
-    console.log('framelistframesindex is', frameListFrames[index])
-    frameListFrames[index].outerHTML = renderAction(index).outerHTML;
+    frameListFrames[index].innerHTML = renderAction(index).innerHTML;
 }
 frameList.addEventListener('mouseleave', (e) => {
     previewFrameDiv.style.display = 'none';
