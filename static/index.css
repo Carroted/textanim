@@ -21,7 +21,7 @@ textarea {
     outline: none;
 }
 
-textarea.previous {
+.textarea.previous {
     z-index: -1;
     pointer-events: none;
     user-select: none;
@@ -93,7 +93,28 @@ body {
     background: #4d4d4d;
 }
 
-textarea.preview {
+.textarea.preview {
     pointer-events: none;
     background: #2d2d2d;
+}
+
+.textarea {
+    font-family: monospace;
+    background: #2d2d2da0;
+    color: #ffffff;
+    user-select: none;
+    cursor: text;
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.textarea:focus {
+    border: none;
+    outline: none;
+    background: #3d3d3da0;
+}
+
+.textarea .cursor {
+    background: #ffffff;
+    color: #000000;
 }

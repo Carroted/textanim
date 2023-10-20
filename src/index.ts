@@ -1,35 +1,48 @@
 // welcome to textanim, webapp for making and viewing text animations
 
+import TextArea from "./textarea"; // we use this for all text areas, including readonly ones for preview
+
+let rows = 3;
+let cols = 16;
+
 let editorArea = document.createElement('div');
 editorArea.className = 'editor';
 editorArea = document.body.appendChild(editorArea);
 
 let textAreas = document.createElement('div');
 textAreas.className = 'textareas';
+textAreas = editorArea.appendChild(textAreas);
 
-let textArea = document.createElement('textarea');
-// for onion skin
-let prevTextArea = document.createElement('textarea');
-let previewTextArea = document.createElement('textarea');
-prevTextArea.disabled = true;
-prevTextArea.className = 'previous';
-previewTextArea.disabled = true;
-previewTextArea.className = 'preview';
-previewTextArea.style.display = 'none';
+let currentFrameDiv = document.createElement("div");
+currentFrameDiv.className = 'main';
+currentFrameDiv = textAreas.appendChild(currentFrameDiv);
 
-textArea.rows = 3;
-prevTextArea.rows = 3;
-textArea.cols = 16;
-prevTextArea.cols = 16;
-previewTextArea.rows = 3;
-previewTextArea.cols = 16;
-// set max length to rows * cols
-textArea.maxLength = textArea.rows * textArea.cols;
+let previousFrameDiv = document.createElement("div");
+previousFrameDiv.className = 'previous';
+previousFrameDiv = textAreas.appendChild(previousFrameDiv);
 
-textArea = textAreas.appendChild(textArea);
-prevTextArea = textAreas.appendChild(prevTextArea);
-previewTextArea = textAreas.appendChild(previewTextArea);
-editorArea.appendChild(textAreas);
+let previewFrameDiv = document.createElement("div");
+previewFrameDiv.className = 'preview';
+previewFrameDiv = textAreas.appendChild(previewFrameDiv);
+
+let currentFrame = new TextArea(currentFrameDiv);
+let previousFrame = new TextArea(previousFrameDiv);
+previousFrame.readOnly = true;
+let previewFrame = new TextArea(previewFrameDiv);
+previewFrame.readOnly = true;
+previewFrameDiv.style.display = 'none';
+
+function setRowsCols() {
+    currentFrame.rows = rows;
+    currentFrame.cols = cols;
+    previousFrame.rows = rows;
+    previousFrame.cols = cols;
+    previewFrame.rows = rows;
+    previewFrame.cols = cols;
+}
+
+setRowsCols();
+currentFrame.value = "";
 
 let frameList = document.createElement('div');
 frameList.className = 'frame-list';
@@ -91,105 +104,107 @@ let actions: Action[] = [
 let editingFrameIndex: number = 0;
 
 renderActions();
-fixTextArea();
 
 function updateShownFrame(index: number) {
     let frame = actions[index] as Frame;
-    textArea.value = frame.text;
+    currentFrame.value = frame.text;
     if (index > 0) {
         let prevAction = actions[index - 1];
         if (prevAction.type === 'frame') {
-            prevTextArea.value = (prevAction as Frame).text;
+            previousFrame.value = (prevAction as Frame).text;
         } else {
-            prevTextArea.value = '';
+            previousFrame.value = '';
         }
     } else {
-        prevTextArea.value = '';
+        previousFrame.value = '';
     }
 }
 
-let savedSelectionStart: number | null = null;
-let savedSelectionEnd: number | null = null;
+function renderAction(i: number) {
+    let action = actions[i];
+    let item = document.createElement('div');
+    item.className = 'item' + (i === editingFrameIndex ? ' active' : '');
+    let number = document.createElement('div');
+    number.className = 'number';
+    number.innerHTML = (i + 1).toString();
+    item.appendChild(number);
+    let clone = document.createElement('button');
+    clone.innerHTML = 'Clone';
+    clone.addEventListener('click', (e) => {
+        actions.splice(i, 0, JSON.parse(JSON.stringify(actions[i])));
+        renderActions();
+        updateShownFrame(editingFrameIndex);
+    });
+    item.appendChild(clone);
+    if (action.type === 'frame') {
+        let frame = action as Frame;
+        let frameReplicaDiv = document.createElement('div');
+        frameReplicaDiv.className = 'frame-replica';
+        frameReplicaDiv = item.appendChild(frameReplicaDiv);
+        let frameReplica = new TextArea(frameReplicaDiv);
+        frameReplica.readOnly = true;
+        frameReplica.value = frame.text.padEnd(cols * rows, ' ');
+        frameReplica.rows = rows;
+        frameReplica.cols = cols;
+        frameReplica.onClick(() => {
+            console.log('clicked replica');
+            editingFrameIndex = i;
+            updateShownFrame(editingFrameIndex);
+            renderActions();
+            currentFrameDiv.focus();
+        });
+        // on hover, show it until blur of list
+        frameReplicaDiv.addEventListener('mouseover', (e) => {
+            if (i === editingFrameIndex) {
+                previewFrameDiv.style.display = 'none';
+            } else {
+                previewFrame.value = frame.text;
+                previewFrame.rows = rows;
+                previewFrame.cols = cols;
+                previewFrameDiv.style.display = 'block';
+            }
+        });
+    }
+    else if (action.type === 'delay') {
+        let delay = action as Delay;
+        let delayInput = document.createElement('input');
+        delayInput.type = 'number';
+        delayInput.value = delay.frames.toString();
+        delayInput.min = '1';
+        delayInput.addEventListener('change', (e) => {
+            actions[i] = {
+                type: 'delay',
+                frames: parseInt(delayInput.value)
+            } as Delay;
+        });
+        item.appendChild(delayInput);
+    }
+    let remove = document.createElement('button');
+    remove.innerHTML = 'Remove';
+    remove.addEventListener('click', (e) => {
+        actions.splice(i, 1);
+        if (editingFrameIndex >= i) {
+            editingFrameIndex--;
+        } else if (editingFrameIndex === actions.length) {
+            editingFrameIndex--;
+        }
+        if (editingFrameIndex < 0) {
+            editingFrameIndex = 0;
+        }
 
+        renderActions();
+    });
+    item.appendChild(remove);
+    return item;
+}
+let frameListFrames: HTMLDivElement[] = [];
 function renderActions() {
     frameList.innerHTML = '';
+    frameListFrames = [];
     let actionLength = actions.length;
     for (let i = 0; i < actionLength; i++) {
-        let action = actions[i];
-        let item = document.createElement('div');
-        item.className = 'item' + (i === editingFrameIndex ? ' active' : '');
-        let number = document.createElement('div');
-        number.className = 'number';
-        number.innerHTML = (i + 1).toString();
-        item.appendChild(number);
-        let clone = document.createElement('button');
-        clone.innerHTML = 'Clone';
-        clone.addEventListener('click', (e) => {
-            actions.splice(i, 0, JSON.parse(JSON.stringify(actions[i])));
-            renderActions();
-            updateShownFrame(editingFrameIndex);
-        });
-        item.appendChild(clone);
-        if (action.type === 'frame') {
-            let frame = action as Frame;
-            let frameReplica = document.createElement('textarea');
-            frameReplica.className = 'frame-replica';
-            frameReplica.readOnly = true;
-            frameReplica.value = frame.text;
-            frameReplica.rows = textArea.rows;
-            frameReplica.cols = textArea.cols;
-            frameReplica.addEventListener('click', (e) => {
-                console.log('clicked replica');
-                editingFrameIndex = i;
-                updateShownFrame(editingFrameIndex);
-                textArea.disabled = false;
-                renderActions();
-                textArea.focus();
-            });
-            // on hover, show it until blur of list
-            frameReplica.addEventListener('mouseover', (e) => {
-                if (i === editingFrameIndex) {
-                    previewTextArea.style.display = 'none';
-                } else {
-                    previewTextArea.value = frame.text;
-                    previewTextArea.rows = textArea.rows;
-                    previewTextArea.cols = textArea.cols;
-                    previewTextArea.style.display = 'initial';
-                }
-            });
-            item.appendChild(frameReplica);
-        }
-        else if (action.type === 'delay') {
-            let delay = action as Delay;
-            let delayInput = document.createElement('input');
-            delayInput.type = 'number';
-            delayInput.value = delay.frames.toString();
-            delayInput.min = '1';
-            delayInput.addEventListener('change', (e) => {
-                actions[i] = {
-                    type: 'delay',
-                    frames: parseInt(delayInput.value)
-                } as Delay;
-            });
-            item.appendChild(delayInput);
-        }
-        let remove = document.createElement('button');
-        remove.innerHTML = 'Remove';
-        remove.addEventListener('click', (e) => {
-            actions.splice(i, 1);
-            if (editingFrameIndex >= i) {
-                editingFrameIndex--;
-            } else if (editingFrameIndex === actions.length) {
-                editingFrameIndex--;
-            }
-            if (editingFrameIndex < 0) {
-                editingFrameIndex = 0;
-            }
-
-            renderActions();
-        });
-        item.appendChild(remove);
-        frameList.appendChild(item);
+        let item = renderAction(i);
+        frameListFrames.push(frameList.appendChild(item));
     }
 
     // new frame button
@@ -199,7 +214,7 @@ function renderActions() {
         editingFrameIndex = actions.length;
         actions.push({
             type: 'frame',
-            text: newFromCurrent.checked ? textArea.value : ''
+            text: newFromCurrent.checked ? currentFrame.value : ''
         } as Frame);
         renderActions();
         updateShownFrame(editingFrameIndex);
@@ -217,117 +232,71 @@ function renderActions() {
     });
     frameList.appendChild(newDelay);
 }
+function updateAction(index: number) {
+    // replace child
+    console.log('index is', index);
+    console.log('framelistframesindex is', frameListFrames[index])
+    frameListFrames[index].outerHTML = renderAction(index).outerHTML;
+}
 frameList.addEventListener('mouseleave', (e) => {
-    previewTextArea.style.display = 'none';
+    previewFrameDiv.style.display = 'none';
 });
-
-
-textArea.addEventListener('keydown', (e) => {
+currentFrameDiv.addEventListener('keydown', (e) => {
+    // this is just tab override
     if (e.key === 'Tab') {
-        let selectionStart = textArea.selectionStart;
-        let selectionEnd = textArea.selectionEnd;
-        fixTextArea();
         let mustScroll = false;
         if (editingFrameIndex === actions.length - 1) {
             actions.push({
                 type: 'frame',
-                text: newFromCurrent.checked ? textArea.value : ''
+                text: newFromCurrent.checked ? currentFrame.value : ''
             } as Frame);
             mustScroll = true;
         }
         editingFrameIndex++;
         updateShownFrame(editingFrameIndex);
-        fixTextArea();
         renderActions();
         e.preventDefault();
-        textArea.selectionStart = selectionStart;
-        textArea.selectionEnd = selectionEnd;
         // scroll to bottom if we added a new frame
         if (mustScroll) {
             frameList.scrollTop = frameList.scrollHeight;
         }
-    }
-    // if its newline, we will instead jump to next line without inserting newline, no content will be modified
-    else if (e.key === 'Enter') {
-        let colLength = textArea.cols;
+    } else if (e.key === 'Enter') {
+        let colLength = currentFrame.cols;
         // add colLength to our selection pos, then move to start of new row we are on
-        let selectionStart = textArea.selectionStart + colLength;
-        selectionStart -= selectionStart % colLength;
-        textArea.selectionStart = selectionStart;
-        textArea.selectionEnd = selectionStart;
+        let cursor = currentFrame.cursorPos + colLength;
+        cursor -= cursor % colLength;
+        currentFrame.cursorPos = cursor;
         e.preventDefault();
     }
-    // if about to insert a char, replace instead
-    else if ((e.key.length === 1 || e.key === 'Space') && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        let selectionEnd = textArea.selectionEnd;
-        textArea.value = textArea.value.slice(0, textArea.selectionStart) + e.key + textArea.value.slice(textArea.selectionEnd + 1);
-        e.preventDefault();
-        // move cursor to end of inserted char
-        textArea.selectionStart = selectionEnd + 1;
-        textArea.selectionEnd = selectionEnd + 1;
-        fixTextArea();
-        updateEditing();
-    }
-
-    fixTextArea();
 });
 
 function updateEditing() {
     actions[editingFrameIndex] = {
         type: 'frame',
-        text: textArea.value
+        text: currentFrame.value
     } as Frame;
-    renderActions();
+    updateAction(editingFrameIndex);
 }
 
-textArea.addEventListener('input', (e) => {
-    fixTextArea();
+currentFrame.onValueChanged(() => {
     updateEditing();
 });
-
-function fixTextArea() {
-    textArea.maxLength = textArea.rows * textArea.cols;
-    // trim to max length
-    if (textArea.value.length > textArea.maxLength) {
-        textArea.value = textArea.value.slice(0, textArea.maxLength);
-    }
-    let selectionStart = textArea.selectionStart;
-    let selectionEnd = textArea.selectionEnd;
-    // replace space with nbsp (' ')
-    textArea.value = textArea.value.replace(/ /g, ' ');
-    // pad with spaces until it reaches rows * cols
-    let targetLength = textArea.rows * textArea.cols;
-    while (textArea.value.length < targetLength) {
-        textArea.value += ' ';
-    }
-    if (textArea.value.length > textArea.maxLength) {
-        textArea.value = textArea.value.slice(0, textArea.maxLength);
-    }
-    // restore cursor position
-    textArea.selectionStart = selectionStart;
-    textArea.selectionEnd = selectionEnd;
-}
 
 // add buttons to resize text area
 let addRow = document.createElement('button');
 addRow.innerHTML = 'Add row';
 addRow.addEventListener('click', () => {
-    textArea.rows++; // Increase the number of visible rows
-    textArea.maxLength = textArea.rows * textArea.cols;
-    prevTextArea.rows = textArea.rows;
-    previewTextArea.rows = textArea.rows;
-    fixTextArea();
+    rows++; // Increase the number of visible rows
+    setRowsCols();
     renderActions();
 });
 
 let removeRow = document.createElement('button');
 removeRow.innerHTML = 'Remove row';
 removeRow.addEventListener('click', () => {
-    if (textArea.rows > 1) {
-        textArea.rows--; // Decrease the number of visible rows
-        prevTextArea.rows = textArea.rows;
-        previewTextArea.rows = textArea.rows;
-        fixTextArea();
+    if (rows > 1) {
+        rows--;
+        setRowsCols();
         renderActions();
     }
 });
@@ -335,22 +304,17 @@ removeRow.addEventListener('click', () => {
 let addColumn = document.createElement('button');
 addColumn.innerHTML = 'Add column';
 addColumn.addEventListener('click', () => {
-    let oldCols = textArea.cols;
-    textArea.cols++; // Increase the number of visible columns
-    prevTextArea.cols = textArea.cols;
-    previewTextArea.cols = textArea.cols;
-    fixTextArea();
+    cols++;
+    setRowsCols();
     renderActions();
 });
 
 let removeColumn = document.createElement('button');
 removeColumn.innerHTML = 'Remove column';
 removeColumn.addEventListener('click', () => {
-    if (textArea.cols > 1) {
-        textArea.cols--; // Decrease the number of visible columns
-        prevTextArea.cols = textArea.cols;
-        previewTextArea.cols = textArea.cols;
-        fixTextArea();
+    if (cols > 1) {
+        cols--; // Decrease the number of visible columns
+        setRowsCols();
         renderActions();
     }
 });
@@ -374,12 +338,12 @@ function stop() {
 
 async function play() {
     stopped = false;
-    textArea.disabled = true;
+    currentFrame.readOnly = true;
     oldEditingFrameIndex = editingFrameIndex;
     editingFrameIndex = 0;
     renderActions();
-    let prevTextAreaDisplay = prevTextArea.style.display;
-    prevTextArea.style.display = 'none';
+    let previousFrameDisplay = previousFrameDiv.style.display;
+    previousFrameDiv.style.display = 'none';
     // loop through actions
     for (let action of actions) {
         if (stopped) {
@@ -388,7 +352,7 @@ async function play() {
 
         if (action.type === 'frame') {
             let frame = action as Frame;
-            textArea.value = frame.text;
+            currentFrame.value = frame.text;
             await sleep(frameDelay);
         }
         else if (action.type === 'delay') {
@@ -400,8 +364,8 @@ async function play() {
         renderActions();
     }
     console.log('Done playing');
-    textArea.disabled = false;
-    prevTextArea.style.display = prevTextAreaDisplay;
+    currentFrame.readOnly = false;
+    previousFrameDiv.style.display = previousFrameDisplay;
     editingFrameIndex = oldEditingFrameIndex;
     renderActions();
 }
@@ -457,8 +421,8 @@ name = "some file"
 function actionsToString() {
     let result = '';
     result += '@framerate ' + frameDelay + '\n';
-    result += '@screenwidth ' + textArea.cols + '\n';
-    result += '@screenheight ' + textArea.rows + '\n\n';
+    result += '@screenwidth ' + cols + '\n';
+    result += '@screenheight ' + rows + '\n\n';
     for (let action of actions) {
         if (action.type === 'frame') {
             // split into lines based on cols, itll look better
@@ -466,9 +430,8 @@ function actionsToString() {
             let frame = action as Frame;
             let text = frame.text;
             let length = text.length;
-            let colLength = textArea.cols;
-            for (let i = 0; i < length; i += colLength) {
-                lines.push(text.slice(i, i + colLength));
+            for (let i = 0; i < length; i += cols) {
+                lines.push(text.slice(i, i + cols));
             }
             result += '@frame\n' + lines.join('\n') + '\n\n';
         }
@@ -494,9 +457,24 @@ function stringToActions(str: string) {
     function sectionHandler() {
         if (section !== null) {
             if (section === 'frame') {
+                let frame = sectionText.split('\n').join('');
+                if (frame.length > (screenwidth * screenheight)) {
+                    frame = frame.slice(0, screenwidth * screenheight);
+                }
+                // replace space with nbsp (' ')
+                frame = frame.replace(/ /g, ' ');
+                frame = frame.replace(/\n/g, '');
+                // pad with spaces until it reaches rows * cols
+                let targetLength = screenwidth * screenheight;
+                while (frame.length < targetLength) {
+                    frame += ' ';
+                }
+                if (frame.length > screenwidth * screenheight) {
+                    frame = frame.slice(0, screenwidth * screenheight);
+                }
                 actions.push({
                     type: 'frame',
-                    text: sectionText.trim()
+                    text: frame
                 } as Frame);
             }
             else if (section === 'delay') {
@@ -510,9 +488,11 @@ function stringToActions(str: string) {
             }
             else if (section === 'screenwidth') {
                 screenwidth = parseInt(sectionText.trim());
+                console.log(screenwidth);
             }
             else if (section === 'screenheight') {
                 screenheight = parseInt(sectionText.trim());
+                console.log(screenheight);
             }
         }
     }
@@ -564,8 +544,9 @@ window.load = (str: string) => {
     let parsed = stringToActions(str);
     console.log(parsed);
     framerate.value = parsed.framerate.toString();
-    textArea.rows = parsed.screenheight;
-    textArea.cols = parsed.screenwidth;
+    rows = parsed.screenheight;
+    cols = parsed.screenwidth;
+    setRowsCols();
     actions = parsed.actions;
     renderActions();
     updateShownFrame(editingFrameIndex);
