@@ -536,6 +536,10 @@ var stop = function() {
   editingFrameIndex = oldEditingFrameIndex;
 };
 async function play() {
+  if (playing) {
+    return;
+  }
+  playing = true;
   stopped = false;
   currentFrame.readOnly = true;
   oldEditingFrameIndex = editingFrameIndex;
@@ -558,6 +562,7 @@ async function play() {
     editingFrameIndex++;
     renderActions();
   }
+  playing = false;
   console.log("Done playing");
   currentFrame.readOnly = false;
   previousFrameDiv.style.display = previousFrameDisplay;
@@ -812,6 +817,7 @@ settingsArea.appendChild(removeRow);
 settingsArea.appendChild(addColumn);
 settingsArea.appendChild(removeColumn);
 var stopped = false;
+var playing = false;
 var oldEditingFrameIndex = editingFrameIndex;
 window.play = play;
 window.stop = stop;
