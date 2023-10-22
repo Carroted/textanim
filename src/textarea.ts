@@ -45,6 +45,13 @@ class TextArea {
     offKeyDown(listener: (e: KeyboardEvent) => void) {
         this.keyDownListeners = this.keyDownListeners.filter((l) => l != listener);
     }
+    private copyListeners: (() => void)[] = [];
+    onCopy(listener: () => void) {
+        this.copyListeners.push(listener);
+    }
+    offCopy(listener: () => void) {
+        this.copyListeners = this.copyListeners.filter((l) => l != listener);
+    }
 
     indexToXY(index: number): [number, number] {
         return [index % this.columnCount, Math.floor(index / this.columnCount)];
@@ -61,6 +68,74 @@ class TextArea {
         if (this.parent == document.activeElement) {
             this.parent.blur();
         }
+    }
+
+    charPressed(key: string) {
+        let text = this.text;
+        // pad with nbsp (\u00A0)
+        let chars = text.padEnd(this.columnCount * this.rowCount, "\u00A0").split('');
+        // if end is at same spot as start, we can just replace
+        if (this.cursor == this.cursorEnd) {
+            chars[this.cursor] = key;
+            this.cursorEnd++;
+        }
+        // otherwise replace each char in selection with this.isSelected(index)
+        else {
+            let textLength = chars.length;
+            for (let i = 0; i < textLength; i++) {
+                if (this.isSelected(i)) {
+                    chars[i] = key;
+                }
+            }
+        }
+
+
+        // replace ' ' with \u00A0
+        this.text = chars.join("").replace(/ /g, '\u00A0');
+        // trim to (columns * rows) chars
+        if (this.text.length > (this.columnCount * this.rowCount)) {
+            this.text = this.text.substring(0, this.columnCount * this.rowCount);
+        }
+        this.cursor = this.cursorEnd;
+        if (this.cursor >= this.text.length - 1) {
+            this.cursor = this.text.length - 1;
+        }
+        this.cursorEnd = this.cursor;
+        this.update();
+        this.emitValueChanged();
+    }
+
+    pasteText(pasteText: string) {
+        let text = this.text;
+        // pad with nbsp (\u00A0)
+        let chars = text.padEnd(this.columnCount * this.rowCount, "\u00A0").split('');
+        // replace ' ' with \u00A0
+        pasteText = pasteText.replace(/ /g, '\u00A0');
+        // replace text
+        const oldCursor = this.cursor;
+        let lineIndex = 0;
+        let pastedLength = pasteText.length;
+        for (let i = 0; i < pastedLength; i++) {
+            // if its newline
+            if (pasteText[i] == "\n") {
+                lineIndex++;
+                // its oldcursor + lineindex * columnCount
+                this.cursor = oldCursor + lineIndex * this.columnCount;
+                this.cursorEnd = this.cursor;
+
+                continue;
+            }
+            chars[this.cursor] = pasteText[i];
+            this.cursor++;
+        }
+        this.text = chars.join("");
+        // trim to (columns * rows) chars
+        if (this.text.length > (this.columnCount * this.rowCount)) {
+            this.text = this.text.substring(0, this.columnCount * this.rowCount);
+        }
+        this.cursorEnd = this.cursor;
+        this.update();
+        this.emitValueChanged();
     }
 
     constructor(target: HTMLDivElement, rows: number, cols: number, value: string) {
@@ -87,48 +162,9 @@ class TextArea {
 
             if (this.isReadOnly) return;
 
-            console.log('down')
             // set text[cursor] to e.key if its one char
             if (e.key.length == 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                let text = this.text;
-                // pad with nbsp (\u00A0)
-                let chars = text.padEnd(this.columnCount * this.rowCount, "\u00A0").split('');
-                // if end is at same spot as start, we can just replace
-                if (this.cursor == this.cursorEnd) {
-                    chars[this.cursor] = e.key;
-                }
-                // otherwise replace each char in selection with this.isSelected(index)
-                else {
-                    let textLength = chars.length;
-                    for (let i = 0; i < textLength; i++) {
-                        if (this.isSelected(i)) {
-                            chars[i] = e.key;
-                        }
-                    }
-                }
-                // now figure out where to move cursor. it has to be at the end of the selection, but cursorEnd could be before cursor
-                let startXY = this.indexToXY(this.cursor);
-                let endXY = this.indexToXY(this.cursorEnd);
-                let minX = Math.min(startXY[0], endXY[0]);
-                let maxX = Math.max(startXY[0], endXY[0]);
-                let minY = Math.min(startXY[1], endXY[1]);
-                let maxY = Math.max(startXY[1], endXY[1]);
-                let newCursor = (maxY * this.columnCount) + maxX;
-                this.cursor = newCursor;
-
-                // replace ' ' with \u00A0
-                this.text = chars.join("").replace(/ /g, '\u00A0');
-                // trim to (columns * rows) chars
-                if (this.text.length > (this.columnCount * this.rowCount)) {
-                    this.text = this.text.substring(0, this.columnCount * this.rowCount);
-                }
-                this.cursor++;
-                if (this.cursor >= this.text.length - 1) {
-                    this.cursor = this.text.length - 1;
-                }
-                this.cursorEnd = this.cursor;
-                this.update();
-                this.emitValueChanged();
+                this.charPressed(e.key);
             }
             // up arrow
             if (e.key == "ArrowUp") {
@@ -170,40 +206,46 @@ class TextArea {
                 this.update();
                 e.preventDefault();
             }
+
+            // ctrl c = loop over chars, if isSelected, add to clipboard
+            if (e.key == "c" && e.ctrlKey) {
+                let text = this.text;
+                let chars = text.split('');
+                let textLength = chars.length;
+                let clipboard = "";
+                let previousRow = -1;
+                for (let i = 0; i < textLength; i++) {
+                    if (this.isSelected(i)) {
+                        // calculate row its on
+                        let row = Math.floor(i / this.columnCount);
+                        // if row is different, add newline
+                        if (row != previousRow) {
+                            if (previousRow != -1) {
+                                clipboard += "\n";
+                            }
+                            previousRow = row;
+                        }
+                        clipboard += chars[i];
+                    }
+                }
+                navigator.clipboard.writeText(clipboard);
+                this.copyListeners.forEach((l) => l());
+            }
+
+            // ctrl a = cursor to start, cursorEnd to end
+            if (e.key == "a" && e.ctrlKey) {
+                this.cursor = 0;
+                this.cursorEnd = this.text.length - 1;
+                this.updateSelection();
+                e.preventDefault();
+            }
         });
         // on paste, replace starting at cursor, and move cursor to end of pasted text
         document.addEventListener("paste", (e) => {
             if (document.activeElement != this.parent) return;
             if (this.isReadOnly) return;
-            let text = this.text;
-            // pad with nbsp (\u00A0)
-            let chars = text.padEnd(this.columnCount * this.rowCount, "\u00A0").split('');
-            let pasted = e.clipboardData!.getData('text/plain');
-            // replace ' ' with \u00A0
-            pasted = pasted.replace(/ /g, '\u00A0');
-            // replace text
-            const oldCursor = this.cursor;
-            let lineIndex = 0;
-            for (let i = 0; i < pasted.length; i++) {
-                // if its newline
-                if (pasted[i] == "\n") {
-                    lineIndex++;
-                    // its oldcursor + lineindex * columnCount
-                    this.cursor = oldCursor + lineIndex * this.columnCount;
-                    this.cursorEnd = this.cursor;
-
-                    continue;
-                }
-                chars[this.cursor] = pasted[i];
-                this.cursor++;
-            }
-            this.text = chars.join("");
-            // trim to (columns * rows) chars
-            if (this.text.length > (this.columnCount * this.rowCount)) {
-                this.text = this.text.substring(0, this.columnCount * this.rowCount);
-            }
-            this.update();
-            this.emitValueChanged();
+            let pasteText = e.clipboardData!.getData('text/plain');
+            this.pasteText(pasteText);
             e.preventDefault();
         });
         // on focus, cursor visible true, on blur, cursor visible false
@@ -212,7 +254,7 @@ class TextArea {
             this.update();
         });
         this.parent.addEventListener("blur", () => {
-            this.cursorVisible = false;
+            //this.cursorVisible = false;
             this.update();
         });
         document.addEventListener("mouseup", () => {
@@ -287,9 +329,33 @@ class TextArea {
     private build() {
         this.parent.innerHTML = "";
         this.lines = [];
+        this.charSpans = [];
         for (let i = 0; i < this.rowCount; i++) {
             let line = document.createElement("div");
             line.className = "line";
+            for (let j = 0; j < this.columnCount; j++) {
+                let char = document.createElement("span");
+                let index = j + (i * this.columnCount);
+                char.addEventListener("mousedown", (e) => {
+                    this.cursor = index;
+                    this.cursorEnd = index;
+                    this.update();
+                    e.preventDefault();
+                    this.parent.focus();
+                    this.emitClick();
+                    this.pointerDown = true;
+                });
+                char.addEventListener("mousemove", (e) => {
+                    if (this.pointerDown) {
+                        this.cursorEnd = index;
+                        this.updateSelection();
+                    }
+                });
+
+                char.textContent = '\u00a0';
+                char = line.appendChild(char);
+                this.charSpans.push(char);
+            }
             this.lines.push(line);
             this.parent.appendChild(line);
         }
@@ -315,7 +381,8 @@ class TextArea {
     }
 
     updateSelection() {
-        for (let i = 0; i < this.charSpans.length; i++) {
+        let length = this.charSpans.length;
+        for (let i = 0; i < length; i++) {
             let char = this.charSpans[i];
             if (this.isSelected(i)) {
                 char.classList.add("cursor");
@@ -325,62 +392,19 @@ class TextArea {
         }
     }
 
-    setLine(line: number, text: string) {
-        // padding with nbsp
-        text = text.padEnd(this.columnCount, "\u00A0");
-        // we will create loads of spans for each char, that way later on we can add cursor and whatnot
-        let chars = text.split("");
-        let current = this.lines[line];
-        current.innerHTML = "";
-        for (let i = 0; i < chars.length; i++) {
-            let char = document.createElement("span");
-            let index = i + (line * this.columnCount);
-            if (this.isSelected(index)) {
-                char.classList.add("cursor");
-            }
-            char.addEventListener("mousedown", (e) => {
-                this.cursor = index;
-                this.cursorEnd = index;
-                this.update();
-                e.preventDefault();
-                this.parent.focus();
-                this.emitClick();
-                this.pointerDown = true;
-            });
-            char.addEventListener("mousemove", (e) => {
-                if (this.pointerDown) {
-                    this.cursorEnd = index;
-                    this.updateSelection();
-                }
-            });
-
-            char.textContent = chars[i];
-            char = current.appendChild(char);
-            this.charSpans.push(char);
-        }
-    }
-
     // update will update the lines
     private update() {
-        let line = 0;
-        let text = this.text;
+        let text = this.text.padEnd(this.columnCount * this.rowCount, "\u00A0");
         let chars = text.split("");
-        let currentText = "";
-        this.charSpans = [];
-        // on newline or hit columns, we move to next line
-        for (let i = 0; i < chars.length; i++) {
-            if (chars[i] == "\n" || currentText.length >= this.columnCount) {
-                this.setLine(line, currentText);
-                line++;
-                currentText = "";
+        let charLength = this.charSpans.length;
+        for (let i = 0; i < charLength; i++) {
+            let char = this.charSpans[i];
+            char.textContent = chars[i];
+            if (this.isSelected(i)) {
+                char.classList.add("cursor");
+            } else {
+                char.classList.remove("cursor");
             }
-            currentText += chars[i];
-        }
-        // update the last line
-        this.setLine(line, currentText);
-        // empty the rest of the lines with nbsp
-        for (let i = line + 1; i < this.lines.length; i++) {
-            this.setLine(i, "\u00A0".repeat(this.columnCount));
         }
     }
 }

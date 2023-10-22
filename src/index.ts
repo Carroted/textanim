@@ -2,6 +2,23 @@
 
 import TextArea from "./textarea"; // we use this for all text areas, including readonly ones for preview
 
+// get #toasts
+let toasts = document.getElementById('toasts') as HTMLDivElement;
+function showToast(message: string, duration: number = 3000) {
+    let toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = message;
+    toasts.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade');
+        setTimeout(() => {
+            toasts.removeChild(toast);
+        }, 1000);
+    }, duration);
+}
+// @ts-ignore
+window.showToast = showToast;
+
 let page = document.createElement('div');
 page.className = 'page';
 page = document.body.appendChild(page);
@@ -54,6 +71,10 @@ previewFrameDiv.className = 'preview';
 previewFrameDiv = textAreas.appendChild(previewFrameDiv);
 
 let currentFrame = new TextArea(currentFrameDiv, rows, cols, startingText);
+currentFrame.onCopy(() => {
+    showToast('Copied to clipboard');
+});
+
 let previousFrame = new TextArea(previousFrameDiv, rows, cols, "");
 previousFrame.readOnly = true;
 let previewFrame = new TextArea(previewFrameDiv, rows, cols, "");
@@ -123,7 +144,7 @@ interface Subtitle extends Action {
 let actions: Action[] = [
     {
         type: 'frame',
-        text: ''
+        text: startingText
     } as Frame
 ];
 
@@ -272,27 +293,43 @@ function updateAction(index: number) {
 frameList.addEventListener('mouseleave', (e) => {
     previewFrameDiv.style.display = 'none';
 });
-currentFrame.onKeyDown((e) => {
-    // this is just tab override
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        let mustScroll = false;
-        if (editingFrameIndex === actions.length - 1) {
-            actions.push({
-                type: 'frame',
-                text: newFromCurrent.checked ? currentFrame.value : ''
-            } as Frame);
-            mustScroll = true;
-        }
-        editingFrameIndex++;
+function nextFrame() {
+    let mustScroll = false;
+    if (editingFrameIndex === actions.length - 1) {
+        actions.push({
+            type: 'frame',
+            text: newFromCurrent.checked ? currentFrame.value : ''
+        } as Frame);
+        mustScroll = true;
+    }
+    editingFrameIndex++;
+    updateShownFrame(editingFrameIndex);
+    renderActions();
+    // scroll to bottom if we added a new frame
+    if (mustScroll) {
+        frameList.scrollTop = frameList.scrollHeight;
+    }
+}
+function prevFrame() {
+    if (editingFrameIndex > 0) {
+        editingFrameIndex--;
         updateShownFrame(editingFrameIndex);
         renderActions();
-        // scroll to bottom if we added a new frame
-        if (mustScroll) {
-            frameList.scrollTop = frameList.scrollHeight;
-        }
+    }
+}
+currentFrame.onKeyDown((e) => {
+    // this is just tab override
+    if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        nextFrame();
         return "ignore"; // prevent default tab behavior
-    } else if (e.key === 'Enter') {
+    } // shift tab
+    else if (e.key === 'Tab' && e.shiftKey) {
+        e.preventDefault();
+        prevFrame();
+        return "ignore"; // prevent default tab behavior
+    }
+    else if (e.key === 'Enter') {
         e.preventDefault();
         let colLength = currentFrame.cols;
         // add colLength to our selection pos, then move to start of new row we are on
@@ -302,6 +339,17 @@ currentFrame.onKeyDown((e) => {
         return "ignore"; // prevent default enter behavior
     }
     return "normal";
+});
+// page up and page down on doc = prev and next frame
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'PageUp') {
+        prevFrame();
+        e.preventDefault();
+    }
+    else if (e.key === 'PageDown') {
+        nextFrame();
+        e.preventDefault();
+    }
 });
 
 function updateEditing() {
@@ -408,28 +456,78 @@ window.play = play;
 // @ts-ignore
 window.stop = stop;
 
+let controlsContainer = document.createElement('div');
+controlsContainer.className = 'controls-container';
+controlsContainer = editorArea.appendChild(controlsContainer);
+let controls = document.createElement('div');
+controls.className = 'controls';
+controls = controlsContainer.appendChild(controls);
+
 // play button
 let playButton = document.createElement('button');
 playButton.className = 'play';
-playButton.innerHTML = 'Play';
+playButton.innerHTML = '<img src="/play.png" alt="Play" class="icon">';
 playButton.addEventListener('click', (e) => {
     play();
 });
-settingsArea.appendChild(playButton);
+controls.appendChild(playButton);
 
 // stop button
 let stopButton = document.createElement('button');
 stopButton.className = 'stop';
-stopButton.innerHTML = 'Stop';
+stopButton.innerHTML = '<img src="/stop.png" alt="Stop" class="icon">';
 stopButton.addEventListener('click', (e) => {
     stop();
 });
-settingsArea.appendChild(stopButton);
+controls.appendChild(stopButton);
+
+// push h1 to settingsarea that says Palette
+let paletteTitle = document.createElement('h1');
+paletteTitle.innerHTML = 'Palette';
+settingsArea.appendChild(paletteTitle);
+// now push .palette with some .char
+let palette = document.createElement('div');
+palette.className = 'palette';
+palette = settingsArea.appendChild(palette);
+let paletteChars = ['█', '▓', '▒', '░', '▀', '▄', '▐', '▌', '´', '•', '▁', '▃'];
+for (let char of paletteChars) {
+    let charDiv = document.createElement('div');
+    charDiv.className = 'char';
+    charDiv.innerHTML = char;
+    charDiv.addEventListener('click', (e) => {
+        currentFrame.charPressed(char);
+        currentFrameDiv.focus();
+        updateEditing();
+    });
+    palette.appendChild(charDiv);
+}
 
 // push h1 to settingsarea that says Library
 let libraryTitle = document.createElement('h1');
 libraryTitle.innerHTML = 'Library';
 settingsArea.appendChild(libraryTitle);
+
+// .library
+let library = document.createElement('div');
+library.className = 'library';
+library = settingsArea.appendChild(library);
+
+// .library .item for each sprite
+let sprites = [
+    '▁▃▃▁\n(•-)', '▁▃▃▃▁\n(•-•)'
+];
+
+for (let sprite of sprites) {
+    let item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = sprite.replace(/\n/g, '<br>');
+    item.addEventListener('click', (e) => {
+        currentFrame.pasteText(sprite);
+        currentFrameDiv.focus();
+        updateEditing();
+    });
+    library.appendChild(item);
+}
 
 // example:
 /* @details
