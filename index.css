@@ -3,28 +3,28 @@
     font-family: 'JetBrains Mono';
     font-style: normal;
     font-weight: 400;
-    src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+    src: url('fonts/JetBrainsMono-Regular.woff2') format('woff2');
 }
 
 @font-face {
     font-family: 'JetBrains Mono';
     font-style: normal;
     font-weight: 700;
-    src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+    src: url('fonts/JetBrainsMono-Bold.woff2') format('woff2');
 }
 
 @font-face {
     font-family: 'GNU Unifont';
     font-style: normal;
     font-weight: 400;
-    src: url('/fonts/unifont-15.1.02.otf') format('opentype');
+    src: url('fonts/unifont-15.1.02.otf') format('opentype');
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'GNU Unifont';
+    font-family: 'GNU Unifont', 'JetBrains Mono', monospace;
     text-rendering: optimizeSpeed;
     font-weight: normal;
 }

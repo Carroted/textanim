@@ -823,14 +823,14 @@ controls.className = "controls";
 controls = controlsContainer.appendChild(controls);
 var playButton = document.createElement("button");
 playButton.className = "play";
-playButton.innerHTML = '<img src="/play.png" alt="Play" class="icon">';
+playButton.innerHTML = '<img src="play.png" alt="Play" class="icon">';
 playButton.addEventListener("click", (e) => {
   play();
 });
 controls.appendChild(playButton);
 var stopButton = document.createElement("button");
 stopButton.className = "stop";
-stopButton.innerHTML = '<img src="/stop.png" alt="Stop" class="icon">';
+stopButton.innerHTML = '<img src="stop.png" alt="Stop" class="icon">';
 stopButton.addEventListener("click", (e) => {
   stop();
 });
