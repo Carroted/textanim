@@ -1,7 +1,32 @@
+/* our fonts are gnu unifont and jetbrains mono */
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 700;
+    src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'GNU Unifont';
+    font-style: normal;
+    font-weight: 400;
+    src: url('/fonts/unifont-15.1.02.otf') format('opentype');
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'GNU Unifont';
+    text-rendering: optimizeSpeed;
+    font-weight: normal;
 }
 
 .textareas {
@@ -28,6 +53,30 @@ textarea {
     background: #2d2d2dff;
 }
 
+button {
+    background: #2d2d2d;
+    color: #ffffff;
+    border: none;
+    outline: none;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    cursor: pointer;
+    user-select: none;
+    width: 100%;
+}
+
+button:hover {
+    background: #3d3d3d;
+}
+
+button:active {
+    background: #4d4d4d;
+}
+
+button:focus {
+    outline: 3px solid #4d4d4d;
+}
+
 :root,
 html,
 body {
@@ -42,10 +91,57 @@ body {
 
 body {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
+    flex-direction: column;
+    padding: 3rem 2.5rem;
+    gap: 1.5rem;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     flex-direction: row;
-    padding: 5rem 0;
+    width: 100%;
+    height: 4.5rem;
+}
+
+header img {
+    height: 100%;
+}
+
+header .project {
+    display: flex;
+    /* left aligned column, centered vertically */
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-direction: column;
+    margin-left: 1rem;
+    height: 100%;
+}
+
+.project .menu-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: row;
+    gap: 0.35rem;
+}
+
+.project h1 {
+    font-size: 1.5rem;
+}
+
+.page {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-direction: row;
+    flex-grow: 1;
+    width: 100%;
+    overflow-y: hidden;
+    overflow-x: hidden;
 }
 
 .editor {
@@ -54,18 +150,35 @@ body {
     justify-content: center;
     flex-direction: column;
     height: 100%;
+    padding: 0 3rem;
+    background: #0a0a0a;
+    border-top: 3px solid rgb(32, 32, 32);
+    border-bottom: 3px solid rgb(32, 32, 32);
+    flex-grow: 1;
+    padding-bottom: 7.5rem;
 }
 
-.frame-list {
+.frame-list,
+.settings {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    align-items: center;
+    gap: 0.25rem;
+    align-items: flex-start;
     justify-content: flex-start;
-    margin-left: 0.5rem;
     height: 100%;
     overflow-y: auto;
     background: rgba(255, 255, 255, 0.02);
+    padding: 1rem;
+    border: 3px solid rgb(32, 32, 32);
+}
+
+.settings h1 {
+    font-size: 1.3rem;
+    margin: 1.2rem 0;
+}
+
+.settings h1:first-child {
+    margin-top: 0;
 }
 
 .frame-list .item {
@@ -73,6 +186,36 @@ body {
     align-items: center;
     justify-content: space-between;
     flex-direction: row;
+    gap: 0.25rem;
+    width: 100%;
+    padding: 0.25rem;
+}
+
+.item .buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.item .buttons button {
+    padding: 0.35rem 0.6rem;
+}
+
+.number {
+    background: #2d2d2d;
+    color: #ffffff;
+    min-width: 2.5rem;
+    height: 2rem;
+    flex-shrink: 0;
+    flex-grow: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    font-size: 1.5rem;
+    user-select: none;
 }
 
 .frame-list textarea {
@@ -106,15 +249,59 @@ body {
     cursor: text;
     grid-column: 1;
     grid-row: 1;
+    font-size: 3rem;
+    outline: 3px solid #3d3d3dff;
 }
 
 .textarea:focus {
     border: none;
-    outline: none;
+    outline: 3px solid #4d4d4dff;
     background: #3d3d3da0;
+}
+
+.item.active {
+    background: #ffffff0a;
+    outline: 3px solid #4d4d4d;
+}
+
+.item.active .textarea {
+    background: #4d4d4da0;
+}
+
+.item .textarea:hover {
+    background: #3d3d3da0;
+}
+
+.item .textarea {
+    cursor: pointer;
+    font-size: 0.7rem;
 }
 
 .textarea .cursor {
     background: #ffffff;
     color: #000000;
+}
+
+/* all scrollbars */
+::-webkit-scrollbar {
+    background: #2d2d2d;
+    width: 0.6rem;
+}
+
+/* scrollbar itself */
+::-webkit-scrollbar-thumb {
+    background: #4d4d4d;
+}
+
+.textarea .line {
+    height: 2ch;
+    overflow: visible;
+    text-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.textarea span {
+    width: 1ch;
+    overflow: hidden;
+    display: inline-block;
 }

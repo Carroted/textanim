@@ -2,12 +2,40 @@
 
 import TextArea from "./textarea"; // we use this for all text areas, including readonly ones for preview
 
-let rows = 3;
-let cols = 16;
+let page = document.createElement('div');
+page.className = 'page';
+page = document.body.appendChild(page);
+
+let frameListFrames: HTMLDivElement[] = [];
+
+let rows = 5;
+let cols = 37;
+
+let frameDelay = 100;
+
+let startingTextLines = ["  \\(^-^) welcome", "  - Type in the text area", "  - Tab on text area for next frame", "  - Create sprites in Library", "    for quick drawing"];
+// create starting text, we pad each line to reach cols
+let startingText = startingTextLines.map((line) => {
+    let length = line.length;
+    while (length < cols) {
+        line += ' ';
+        length++;
+    }
+    return line;
+}).join('');
+
+let settingsArea = document.createElement('div');
+settingsArea.className = 'settings';
+settingsArea = page.appendChild(settingsArea);
+
+// push h1 that says settings
+let settingsTitle = document.createElement('h1');
+settingsTitle.innerHTML = 'Settings';
+settingsArea.appendChild(settingsTitle);
 
 let editorArea = document.createElement('div');
 editorArea.className = 'editor';
-editorArea = document.body.appendChild(editorArea);
+editorArea = page.appendChild(editorArea);
 
 let textAreas = document.createElement('div');
 textAreas.className = 'textareas';
@@ -25,10 +53,10 @@ let previewFrameDiv = document.createElement("div");
 previewFrameDiv.className = 'preview';
 previewFrameDiv = textAreas.appendChild(previewFrameDiv);
 
-let currentFrame = new TextArea(currentFrameDiv);
-let previousFrame = new TextArea(previousFrameDiv);
+let currentFrame = new TextArea(currentFrameDiv, rows, cols, startingText);
+let previousFrame = new TextArea(previousFrameDiv, rows, cols, "");
 previousFrame.readOnly = true;
-let previewFrame = new TextArea(previewFrameDiv);
+let previewFrame = new TextArea(previewFrameDiv, rows, cols, "");
 previewFrame.readOnly = true;
 previewFrameDiv.style.display = 'none';
 
@@ -42,12 +70,10 @@ function setRowsCols() {
 }
 
 setRowsCols();
-currentFrame.value = "";
 
 let frameList = document.createElement('div');
 frameList.className = 'frame-list';
-frameList = document.body.appendChild(frameList);
-let frameListFrames: HTMLDivElement[] = [];
+frameList = page.appendChild(frameList);
 
 // checkbox
 let newFromCurrent = document.createElement('input');
@@ -57,9 +83,8 @@ newFromCurrent.checked = true;
 let newFromCurrentLabel = document.createElement('label');
 newFromCurrentLabel.innerHTML = 'New frame from current';
 newFromCurrentLabel.appendChild(newFromCurrent);
-editorArea.appendChild(newFromCurrentLabel);
+settingsArea.appendChild(newFromCurrentLabel);
 
-let frameDelay = 100;
 let framerate = document.createElement('input');
 framerate.type = 'number';
 framerate.value = '100';
@@ -76,7 +101,7 @@ framerate.addEventListener('change', (e) => {
 let framerateLabel = document.createElement('label');
 framerateLabel.innerHTML = 'Delay between frames (ms)';
 framerateLabel.appendChild(framerate);
-editorArea.appendChild(framerateLabel);
+settingsArea.appendChild(framerateLabel);
 
 interface Action {
     type: 'frame' | 'delay' | 'subtitle';
@@ -129,24 +154,13 @@ function renderAction(i: number) {
     number.className = 'number';
     number.innerHTML = (i + 1).toString();
     item.appendChild(number);
-    let clone = document.createElement('button');
-    clone.innerHTML = 'Clone';
-    clone.addEventListener('click', (e) => {
-        actions.splice(i, 0, JSON.parse(JSON.stringify(actions[i])));
-        renderActions();
-        updateShownFrame(editingFrameIndex);
-    });
-    item.appendChild(clone);
     if (action.type === 'frame') {
         let frame = action as Frame;
         let frameReplicaDiv = document.createElement('div');
         frameReplicaDiv.className = 'frame-replica';
         frameReplicaDiv = item.appendChild(frameReplicaDiv);
-        let frameReplica = new TextArea(frameReplicaDiv);
+        let frameReplica = new TextArea(frameReplicaDiv, rows, cols, frame.text);
         frameReplica.readOnly = true;
-        frameReplica.value = frame.text.padEnd(cols * rows, ' ');
-        frameReplica.rows = rows;
-        frameReplica.cols = cols;
         frameReplica.onClick(() => {
             console.log('clicked replica');
             editingFrameIndex = i;
@@ -159,9 +173,9 @@ function renderAction(i: number) {
             if (i === editingFrameIndex) {
                 previewFrameDiv.style.display = 'none';
             } else {
-                previewFrame.value = frame.text;
                 previewFrame.rows = rows;
                 previewFrame.cols = cols;
+                previewFrame.value = frame.text;
                 previewFrameDiv.style.display = 'block';
             }
         });
@@ -180,6 +194,19 @@ function renderAction(i: number) {
         });
         item.appendChild(delayInput);
     }
+
+    let buttons = document.createElement('div');
+    buttons.className = 'buttons';
+    item.appendChild(buttons);
+
+    let clone = document.createElement('button');
+    clone.innerHTML = 'Clone';
+    clone.addEventListener('click', (e) => {
+        actions.splice(i, 0, JSON.parse(JSON.stringify(actions[i])));
+        renderActions();
+        updateShownFrame(editingFrameIndex);
+    });
+    buttons.appendChild(clone);
     let remove = document.createElement('button');
     remove.innerHTML = 'Remove';
     remove.addEventListener('click', (e) => {
@@ -195,7 +222,7 @@ function renderAction(i: number) {
 
         renderActions();
     });
-    item.appendChild(remove);
+    buttons.appendChild(remove);
     return item;
 }
 
@@ -235,14 +262,20 @@ function renderActions() {
 }
 function updateAction(index: number) {
     // replace child
-    frameListFrames[index].innerHTML = renderAction(index).innerHTML;
+    if (frameListFrames[index]) {
+        frameListFrames[index].innerHTML = renderAction(index).innerHTML;
+    }
+    else {
+        renderActions();
+    }
 }
 frameList.addEventListener('mouseleave', (e) => {
     previewFrameDiv.style.display = 'none';
 });
-currentFrameDiv.addEventListener('keydown', (e) => {
+currentFrame.onKeyDown((e) => {
     // this is just tab override
     if (e.key === 'Tab') {
+        e.preventDefault();
         let mustScroll = false;
         if (editingFrameIndex === actions.length - 1) {
             actions.push({
@@ -254,19 +287,21 @@ currentFrameDiv.addEventListener('keydown', (e) => {
         editingFrameIndex++;
         updateShownFrame(editingFrameIndex);
         renderActions();
-        e.preventDefault();
         // scroll to bottom if we added a new frame
         if (mustScroll) {
             frameList.scrollTop = frameList.scrollHeight;
         }
+        return "ignore"; // prevent default tab behavior
     } else if (e.key === 'Enter') {
+        e.preventDefault();
         let colLength = currentFrame.cols;
         // add colLength to our selection pos, then move to start of new row we are on
         let cursor = currentFrame.cursorPos + colLength;
         cursor -= cursor % colLength;
         currentFrame.cursorPos = cursor;
-        e.preventDefault();
+        return "ignore"; // prevent default enter behavior
     }
+    return "normal";
 });
 
 function updateEditing() {
@@ -318,10 +353,10 @@ removeColumn.addEventListener('click', () => {
     }
 });
 
-editorArea.appendChild(addRow);
-editorArea.appendChild(removeRow);
-editorArea.appendChild(addColumn);
-editorArea.appendChild(removeColumn);
+settingsArea.appendChild(addRow);
+settingsArea.appendChild(removeRow);
+settingsArea.appendChild(addColumn);
+settingsArea.appendChild(removeColumn);
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -380,7 +415,7 @@ playButton.innerHTML = 'Play';
 playButton.addEventListener('click', (e) => {
     play();
 });
-editorArea.appendChild(playButton);
+settingsArea.appendChild(playButton);
 
 // stop button
 let stopButton = document.createElement('button');
@@ -389,7 +424,12 @@ stopButton.innerHTML = 'Stop';
 stopButton.addEventListener('click', (e) => {
     stop();
 });
-editorArea.appendChild(stopButton);
+settingsArea.appendChild(stopButton);
+
+// push h1 to settingsarea that says Library
+let libraryTitle = document.createElement('h1');
+libraryTitle.innerHTML = 'Library';
+settingsArea.appendChild(libraryTitle);
 
 // example:
 /* @details
