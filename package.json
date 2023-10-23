@@ -1,5 +1,13 @@
 {
     "scripts": {
-        "go": "rm -rf dist && mkdir dist && cp -r static/. dist/ && bun build ./src/index.ts --outdir dist && python3 -m http.server --directory dist"
+        "go": "bun run build && python3 -m http.server --directory dist",
+        "build": "rm -rf dist && mkdir dist && cp -r static/. dist/ && bun build ./src/index.ts --outdir dist && cp node_modules/gif.js/dist/gif.worker.js dist/",
+        "deploy": "bun run build && gh-pages -d dist"
+    },
+    "dependencies": {
+        "@types/gif.js": "^0.2.4",
+        "gh-pages": "^6.0.0",
+        "gif.js": "^0.2.0",
+        "html2canvas": "^1.4.1"
     }
 }

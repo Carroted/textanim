@@ -14,7 +14,7 @@ class TextArea {
     private rowCount: number = 3;
     private cursor: number = 0;
     private cursorEnd: number = 0;
-    private cursorVisible: boolean = false;
+    cursorVisible: boolean = false;
     private pointerDown: boolean = false;
     private charSpans: HTMLSpanElement[] = [];
 

@@ -1,6 +1,8 @@
 // welcome to textanim, webapp for making and viewing text animations
 
 import TextArea from "./textarea"; // we use this for all text areas, including readonly ones for preview
+import html2canvas from 'html2canvas'; // we use this to render the textareas to images
+import GIF from 'gif.js'; // we use this to make gifs
 
 // get #toasts
 let toasts = document.getElementById('toasts') as HTMLDivElement;
@@ -61,6 +63,13 @@ textAreas = editorArea.appendChild(textAreas);
 let currentFrameDiv = document.createElement("div");
 currentFrameDiv.className = 'main';
 currentFrameDiv = textAreas.appendChild(currentFrameDiv);
+
+async function screenshot() {
+    let canvas = await html2canvas(currentFrameDiv, {
+        backgroundColor: '#000000',
+    });
+    return canvas;
+}
 
 let previousFrameDiv = document.createElement("div");
 previousFrameDiv.className = 'previous';
@@ -184,9 +193,12 @@ function renderAction(i: number) {
         frameReplica.readOnly = true;
         frameReplica.onClick(() => {
             console.log('clicked replica');
+            // unactive current frame
+            frameListFrames[editingFrameIndex].classList.remove('active');
             editingFrameIndex = i;
+            // active current frame
+            frameListFrames[editingFrameIndex].classList.add('active');
             updateShownFrame(editingFrameIndex);
-            renderActions();
             currentFrameDiv.focus();
         });
         // on hover, show it until blur of list
@@ -224,7 +236,8 @@ function renderAction(i: number) {
     clone.innerHTML = 'Clone';
     clone.addEventListener('click', (e) => {
         actions.splice(i, 0, JSON.parse(JSON.stringify(actions[i])));
-        renderActions();
+        // same in frame list
+        frameListFrames.splice(i, 0, frameListFrames[i].cloneNode(true) as HTMLDivElement);
         updateShownFrame(editingFrameIndex);
     });
     buttons.appendChild(clone);
@@ -232,6 +245,8 @@ function renderAction(i: number) {
     remove.innerHTML = 'Remove';
     remove.addEventListener('click', (e) => {
         actions.splice(i, 1);
+        // unactive current frame
+        frameListFrames[editingFrameIndex].classList.remove('active');
         if (editingFrameIndex >= i) {
             editingFrameIndex--;
         } else if (editingFrameIndex === actions.length) {
@@ -240,13 +255,14 @@ function renderAction(i: number) {
         if (editingFrameIndex < 0) {
             editingFrameIndex = 0;
         }
-
-        renderActions();
+        // active current frame
+        frameListFrames[editingFrameIndex].classList.add('active');
     });
     buttons.appendChild(remove);
     return item;
 }
 
+// never ever call this unless you absolutely have to, because its very slow. whenever possible, just update whats changed
 function renderActions() {
     frameList.innerHTML = '';
     frameListFrames = [];
@@ -281,13 +297,26 @@ function renderActions() {
     });
     frameList.appendChild(newDelay);
 }
+
+function updateFrameListNumbers() {
+    let children = frameList.children;
+    let length = children.length;
+    for (let i = 0; i < length; i++) {
+        let child = children[i];
+        if (child.classList.contains('item')) {
+            child.children[0].innerHTML = (i + 1).toString();
+        }
+    }
+}
+
 function updateAction(index: number) {
     // replace child
     if (frameListFrames[index]) {
         frameListFrames[index].innerHTML = renderAction(index).innerHTML;
     }
     else {
-        renderActions();
+        console.log('missing frame ID ' + index + ', adding');
+        frameListFrames[index] = frameList.appendChild(renderAction(index));
     }
 }
 frameList.addEventListener('mouseleave', (e) => {
@@ -302,9 +331,12 @@ function nextFrame() {
         } as Frame);
         mustScroll = true;
     }
+    // unactive current frame
+    frameListFrames[editingFrameIndex].classList.remove('active');
     editingFrameIndex++;
     updateShownFrame(editingFrameIndex);
-    renderActions();
+    // active current frame
+    frameListFrames[editingFrameIndex].classList.add('active');
     // scroll to bottom if we added a new frame
     if (mustScroll) {
         frameList.scrollTop = frameList.scrollHeight;
@@ -312,9 +344,12 @@ function nextFrame() {
 }
 function prevFrame() {
     if (editingFrameIndex > 0) {
+        // unactive current frame
+        frameListFrames[editingFrameIndex].classList.remove('active');
         editingFrameIndex--;
         updateShownFrame(editingFrameIndex);
-        renderActions();
+        // active current frame
+        frameListFrames[editingFrameIndex].classList.add('active');
     }
 }
 currentFrame.onKeyDown((e) => {
@@ -411,19 +446,29 @@ function sleep(ms: number) {
 }
 
 let stopped = false;
+let playing = false;
 let oldEditingFrameIndex = editingFrameIndex;
 
 function stop() {
     stopped = true;
+    frameListFrames[editingFrameIndex].classList.remove('active');
     editingFrameIndex = oldEditingFrameIndex;
 }
 
 async function play() {
+    if (playing) {
+        return;
+    }
+    currentFrame.cursorVisible = false;
+    playing = true;
     stopped = false;
     currentFrame.readOnly = true;
     oldEditingFrameIndex = editingFrameIndex;
+    // unactive current frame
+    frameListFrames[editingFrameIndex].classList.remove('active');
     editingFrameIndex = 0;
-    renderActions();
+    // active current frame
+    frameListFrames[editingFrameIndex].classList.add('active');
     let previousFrameDisplay = previousFrameDiv.style.display;
     previousFrameDiv.style.display = 'none';
     // loop through actions
@@ -442,15 +487,116 @@ async function play() {
             await sleep(frameDelay * delay.frames);
         }
 
+        // unactive current frame
+        frameListFrames[editingFrameIndex].classList.remove('active');
         editingFrameIndex++;
-        renderActions();
+        if (editingFrameIndex >= actions.length) {
+            editingFrameIndex = 0;
+        }
+        // active current frame
+        frameListFrames[editingFrameIndex].classList.add('active');
     }
+    playing = false;
+    currentFrame.cursorVisible = true;
     console.log('Done playing');
     currentFrame.readOnly = false;
     previousFrameDiv.style.display = previousFrameDisplay;
+    // unactive current frame
+    frameListFrames[editingFrameIndex].classList.remove('active');
     editingFrameIndex = oldEditingFrameIndex;
-    renderActions();
+    // active current frame
+    frameListFrames[editingFrameIndex].classList.add('active');
 }
+let renderingPopup = document.createElement('div');
+renderingPopup.className = 'rendering';
+renderingPopup.innerHTML = 'Rendering...';
+renderingPopup.style.display = 'none';
+renderingPopup = document.body.appendChild(renderingPopup);
+let renderingProgress = document.createElement('progress');
+renderingProgress.max = 100;
+renderingProgress.value = 0;
+renderingPopup.appendChild(renderingProgress);
+let renderingPreview = document.createElement('img');
+renderingPreview.className = 'preview';
+renderingPreview = renderingPopup.appendChild(renderingPreview);
+
+async function render() {
+    return new Promise<Blob>(async (resolve) => {
+        renderingPopup.style.display = 'flex';
+        renderingProgress.value = 0;
+        renderingProgress.max = actions.length;
+
+        currentFrame.cursorVisible = false;
+        let currentFrameBoxShadow = currentFrameDiv.style.boxShadow;
+        currentFrameDiv.style.boxShadow = 'none';
+        // we loop through everything, run await screenshot() to get canvas, then add it to gif
+        let gif = new GIF({
+            workers: 2,
+            quality: 10,
+        });
+        gif.on('finished', function (blob) {
+            console.log('Finished rendering gif');
+            resolve(blob);
+        });
+        let previousFrameDisplay = previousFrameDiv.style.display;
+        previousFrameDiv.style.display = 'none';
+        let length = actions.length;
+        for (let i = 0; i < length; i++) {
+            let action = actions[i];
+            if (action.type === 'frame') {
+                let frame = action as Frame;
+                currentFrame.value = frame.text;
+                let screenshotCanvas = await screenshot();
+                // img to the data
+                renderingPreview.src = screenshotCanvas.toDataURL();
+                gif.addFrame(screenshotCanvas, {
+                    delay: frameDelay
+                });
+            }
+            else if (action.type === 'delay') {
+                let delay = action as Delay;
+                let screenshotCanvas = await screenshot();
+                renderingPreview.src = screenshotCanvas.toDataURL();
+                gif.addFrame(screenshotCanvas, {
+                    delay: frameDelay * delay.frames
+                });
+            }
+            renderingProgress.value = i;
+        }
+        currentFrame.cursorVisible = true;
+        currentFrameDiv.style.boxShadow = currentFrameBoxShadow;
+        previousFrameDiv.style.display = previousFrameDisplay;
+        console.log('Rendering gif...');
+        gif.render();
+        renderingPopup.style.display = 'none';
+    });
+}
+
+async function renderAndDownload() {
+    let blob = await render();
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.download = 'untitled.gif';
+    link.click();
+    URL.revokeObjectURL(url);
+};
+// @ts-ignore
+window.renderAndDownload = renderAndDownload;
+
+function downloadAnim() {
+    let string = actionsToString();
+    let blob = new Blob([string], { type: 'text/plain' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.download = 'untitled.textanim';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+// @ts-ignore
+window.downloadAnim = downloadAnim;
+
 // @ts-ignore
 window.play = play;
 // @ts-ignore
@@ -466,7 +612,7 @@ controls = controlsContainer.appendChild(controls);
 // play button
 let playButton = document.createElement('button');
 playButton.className = 'play';
-playButton.innerHTML = '<img src="/play.png" alt="Play" class="icon">';
+playButton.innerHTML = '<img src="play.png" alt="Play" class="icon">';
 playButton.addEventListener('click', (e) => {
     play();
 });
@@ -475,11 +621,48 @@ controls.appendChild(playButton);
 // stop button
 let stopButton = document.createElement('button');
 stopButton.className = 'stop';
-stopButton.innerHTML = '<img src="/stop.png" alt="Stop" class="icon">';
+stopButton.innerHTML = '<img src="stop.png" alt="Stop" class="icon">';
 stopButton.addEventListener('click', (e) => {
     stop();
 });
 controls.appendChild(stopButton);
+
+// add "Render GIF" and "Download .textanim" buttons to settings area
+let renderGif = document.createElement('button');
+renderGif.innerHTML = 'Render GIF';
+renderGif.addEventListener('click', (e) => {
+    renderAndDownload();
+});
+settingsArea.appendChild(renderGif);
+let downloadTextanim = document.createElement('button');
+downloadTextanim.innerHTML = 'Download .textanim';
+downloadTextanim.addEventListener('click', (e) => {
+    downloadAnim();
+});
+settingsArea.appendChild(downloadTextanim);
+// add "Load .textanim" button to settings area, it opens dialog and instantly runs load()
+let loadTextanim = document.createElement('button');
+loadTextanim.innerHTML = 'Load .textanim';
+loadTextanim.addEventListener('click', (e) => {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.textanim';
+    input.addEventListener('change', (e) => {
+        if (!input.files) {
+            alert('No files selected');
+            return;
+        }
+        let file = input.files[0];
+        let reader = new FileReader();
+        reader.onload = (e) => {
+            let result = reader.result as string;
+            load(result);
+        };
+        reader.readAsText(file);
+    });
+    input.click();
+});
+settingsArea.appendChild(loadTextanim);
 
 // push h1 to settingsarea that says Palette
 let paletteTitle = document.createElement('h1');
@@ -489,7 +672,7 @@ settingsArea.appendChild(paletteTitle);
 let palette = document.createElement('div');
 palette.className = 'palette';
 palette = settingsArea.appendChild(palette);
-let paletteChars = ['█', '▓', '▒', '░', '▀', '▄', '▐', '▌', '´', '•', '▁', '▃'];
+let paletteChars = ['█', '▓', '▒', '░', '▀', '▄', '▐', '▌', '▁', '▃', '╱', '╲', '╳', '´', '•'];
 for (let char of paletteChars) {
     let charDiv = document.createElement('div');
     charDiv.className = 'char';
@@ -676,8 +859,7 @@ function stringToActions(str: string) {
 // @ts-ignore
 window.actionsToString = actionsToString;
 
-// @ts-ignore
-window.load = (str: string) => {
+function load(str: string) {
     let parsed = stringToActions(str);
     console.log(parsed);
     framerate.value = parsed.framerate.toString();

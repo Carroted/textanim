@@ -3,28 +3,28 @@
     font-family: 'JetBrains Mono';
     font-style: normal;
     font-weight: 400;
-    src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+    src: url('fonts/JetBrainsMono-Regular.woff2') format('woff2');
 }
 
 @font-face {
     font-family: 'JetBrains Mono';
     font-style: normal;
     font-weight: 700;
-    src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+    src: url('fonts/JetBrainsMono-Bold.woff2') format('woff2');
 }
 
 @font-face {
     font-family: 'GNU Unifont';
     font-style: normal;
     font-weight: 400;
-    src: url('/fonts/unifont-15.1.02.otf') format('opentype');
+    src: url('fonts/unifont-15.1.02.otf') format('opentype');
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'GNU Unifont';
+    font-family: 'GNU Unifont', 'JetBrains Mono', monospace;
     text-rendering: optimizeSpeed;
     font-weight: normal;
 }
@@ -36,7 +36,7 @@
 textarea {
     grid-column: 1;
     grid-row: 1;
-    background: #2d2d2de0;
+    background: #ffffff10;
     color: #ffffff;
     font-size: 2rem;
     resize: none;
@@ -47,18 +47,28 @@ textarea {
 }
 
 .textarea.previous {
-    z-index: 1;
+    z-index: 3;
     pointer-events: none;
     user-select: none;
-    background: #2d2d2dff;
+    background: none;
 }
 
 .textarea.main {
     z-index: 2;
+    box-shadow: 0 0 140px 90px #383a8310,
+        /* 0 offset in x and y, 140 is blur radius, 90 is spread radius */
+        /* and inset one: */
+        inset 0 0 140px 90px #383a8310;
+    transition: box-shadow 0.5s ease;
+}
+
+.textarea.main:focus {
+    box-shadow: 0 0 140px 120px #383a8320,
+        inset 0 0 140px 120px #383a8320;
 }
 
 button {
-    background: #2d2d2d;
+    background: #ffffff10;
     color: #ffffff;
     border: none;
     outline: none;
@@ -70,11 +80,11 @@ button {
 }
 
 button:hover {
-    background: #3d3d3d;
+    background: #ffffff20;
 }
 
 button:active {
-    background: #4d4d4d;
+    background: #ffffff30;
 }
 
 button:focus {
@@ -89,7 +99,8 @@ body {
 }
 
 :root {
-    background: #111111;
+    background: linear-gradient(#111111, #0b0c18);
+    background-size: 500% 500%;
     color: #ffffff;
 }
 
@@ -156,8 +167,8 @@ header .project {
     height: 100%;
     padding: 0 3rem;
     background: #0a0a0a;
-    border-top: 3px solid rgb(32, 32, 32);
-    border-bottom: 3px solid rgb(32, 32, 32);
+    border-top: 3px solid #ffffff10;
+    border-bottom: 3px solid #ffffff10;
     flex-grow: 1;
     padding-bottom: 7.5rem;
     position: relative;
@@ -174,7 +185,7 @@ header .project {
     overflow-y: auto;
     background: rgba(255, 255, 255, 0.02);
     padding: 1rem;
-    border: 3px solid rgb(32, 32, 32);
+    border: 3px solid #ffffff10;
 }
 
 .settings h1 {
@@ -209,7 +220,7 @@ header .project {
 }
 
 .number {
-    background: #2d2d2d;
+    background: #ffffff10;
     color: #ffffff;
     min-width: 2.5rem;
     height: 2rem;
@@ -230,7 +241,7 @@ header .project {
 }
 
 .frame-list textarea:hover {
-    background: #2d2d2d;
+    background: #ffffff10;
 }
 
 .frame-list .item.active textarea {
@@ -243,19 +254,26 @@ header .project {
 
 .textarea.preview {
     pointer-events: none;
-    background: #2d2d2d;
+    background: #ffffff10;
+    z-index: 5;
 }
 
 .textarea {
     font-family: monospace;
-    background: #2d2d2de0;
+    background: #ffffff10;
     color: #ffffff;
     user-select: none;
     cursor: text;
     grid-column: 1;
     grid-row: 1;
     font-size: 3rem;
-    outline: 3px solid #3d3d3dff;
+    outline: 3px solid #ffffff20;
+}
+
+.textarea.previous {
+    background: none;
+    color: #5481ff30;
+    outline: none;
 }
 
 .textarea:focus {
@@ -289,7 +307,7 @@ header .project {
 
 /* all scrollbars */
 ::-webkit-scrollbar {
-    background: #2d2d2d;
+    background: #ffffff10;
     width: 0.6rem;
 }
 
@@ -329,9 +347,9 @@ header .project {
     flex-direction: row;
     gap: 0.5rem;
     padding: 0.5rem 0;
-    background: #2d2d2d;
-    border-top: 3px solid rgb(32, 32, 32);
-    border-bottom: 3px solid rgb(32, 32, 32);
+    background: #ffffff10;
+    border-top: 3px solid #ffffff10;
+    border-bottom: 3px solid #ffffff10;
 }
 
 .icon {
@@ -347,7 +365,7 @@ header .project {
 .library {
     width: 100%;
     overflow-y: scroll;
-    outline: 3px solid rgb(32, 32, 32);
+    outline: 3px solid #ffffff10;
     padding: 0.3rem;
     resize: vertical;
 }
@@ -368,7 +386,7 @@ header .project {
     justify-content: center;
     text-align: center;
     font-size: 2rem;
-    background: #2d2d2d;
+    background: #ffffff10;
     padding: 0.3rem;
     user-select: none;
 }
@@ -401,7 +419,7 @@ header .project {
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    background: #2d2d2d;
+    background: #ffffff10;
     user-select: none;
 }
 
@@ -437,12 +455,28 @@ header .project {
     flex-direction: row;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: #2d2d2d;
-    border: 3px solid rgb(32, 32, 32);
+    background: #ffffff10;
+    border: 3px solid #ffffff10;
     transition: opacity 0.5s ease;
     opacity: 1;
 }
 
 .toast.fade {
     opacity: 0;
+}
+
+.rendering {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    z-index: 100;
+    background: #000000;
 }
